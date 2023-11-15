@@ -338,7 +338,7 @@ class SimuladorF1:
         except ValueError as e:
             print(f"Error: {e}")
 
-def simular_carrera(self):
+    def simular_carrera(self):
         try:
             # Solicitar al usuario información sobre la carrera
             pilotos_lesionados = input("Ingrese nro de auto de todos los pilotos lesionados (separados por coma): ").split(',')
