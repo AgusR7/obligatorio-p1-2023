@@ -338,3 +338,207 @@ class SimuladorF1:
         except ValueError as e:
             print(f"Error: {e}")
 
+def simular_carrera(self):
+        try:
+            # Solicitar al usuario información sobre la carrera
+            pilotos_lesionados = input("Ingrese nro de auto de todos los pilotos lesionados (separados por coma): ").split(',')
+            pilotos_abandonan = input("Ingrese nro auto de todos los pilotos que abandonan (separados por coma): ").split(',')
+            errores_pits = input("Ingrese nro de auto de todos los pilotos que cometen error en pits (separados por coma): ").split(',')
+            penalidades = input("Ingrese nro de auto de todos los pilotos que reciben penalidad (separados por coma): ").split(',')
+
+            # Convertir las entradas a listas de enteros
+            pilotos_lesionados = [int(auto) for auto in pilotos_lesionados if auto.strip().isdigit()]
+            pilotos_abandonan = [int(auto) for auto in pilotos_abandonan if auto.strip().isdigit()]
+            errores_pits = [int(auto) for auto in errores_pits if auto.strip().isdigit()]
+            penalidades = [int(auto) for auto in penalidades if auto.strip().isdigit()]
+
+            # Realizar la simulación de la carrera
+            for equipo in self.equipos:
+                for participante in equipo.obtener_pilotos() + equipo.mecanicos:
+                    if isinstance(participante, ParticipanteCarrera) and not isinstance(participante, PilotoReserva):
+                        if participante.num_auto in pilotos_lesionados:
+                            # El piloto está lesionado, no participa en la carrera
+                            print(f"{participante.nombre} está lesionado y no participará en la carrera.")
+                            participante.lesionar(equipo.pilotos_reserva[0])
+                        elif participante.num_auto in pilotos_abandonan:
+                            participante.abandonar_carrera()
+                        elif participante.num_auto in errores_pits:
+                            participante.simular_carrera(0, 0, [1], penalidades)
+                        elif participante.num_auto in penalidades:
+                            participante.simular_carrera(0, 0, [], [1])
+                        else:
+                            # Realizar la simulación solo para participantes no lesionados ni abandonados
+                            participante.simular_carrera(0, 0, [], [])
+
+            # Ordenar los participantes por score_final de manera descendente
+            participantes_ordenados = sorted(
+                [participante for equipo in self.equipos for participante in equipo.obtener_pilotos() if isinstance(participante, ParticipanteCarrera)],
+                key=lambda participante: getattr(participante, 'score_final', 0),
+                reverse=True
+            )
+
+            # Imprimir resultados de la carrera
+            print("\nResultados de la carrera:")
+            for i, participante in enumerate(participantes_ordenados):
+                if isinstance(participante, PilotoReserva):
+                    continue
+
+                if not participante.lesionado and not participante.abandono:  
+                    print(f"{i + 1}. {participante} - Score Final: {participante.score_final}")
+
+            # Asignar puntos a los participantes
+            print("\nPuntos asignados:")
+            for i, participante in enumerate(participantes_ordenados[:10]):
+                piloto_a_mostrar = participante.piloto_reemplazado if isinstance(participante, PilotoReserva) else participante
+
+                if isinstance(participante, PilotoReserva):
+                    continue
+
+                puntos_ganados = 0
+
+                # Verificar si el piloto está lesionado o ha abandonado (solo para pilotos, no reservas)
+                if not piloto_a_mostrar.lesionado and not piloto_a_mostrar.abandono:
+                    # Asignar puntos según la posición
+                    if i < 10:
+                        puntos_ganados = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1][i]
+                    else:
+                        puntos_ganados = 0
+
+                    # Actualizar el puntaje total del piloto
+                    piloto_a_mostrar.puntaje_campeonato += puntos_ganados
+
+                    # Actualizar el puntaje total del piloto de reserva
+                    if isinstance(participante, PilotoReserva):
+                        participante.puntaje_campeonato += puntos_ganados
+
+                    print(f"{i + 1}. {piloto_a_mostrar.num_auto} - Puntos Ganados: {puntos_ganados}")
+                else:
+                    print(f"{i + 1}. {piloto_a_mostrar.num_auto} - Piloto Lesionado o Abandonó - No recibe puntos.")
+        except Exception as e:
+            print(f"Error en la simulación de la carrera: {e}")
+
+    def obtener_todos_los_pilotos(self):
+        # Recopila todos los pilotos titulares y de reserva
+        pilotos = []
+        for emp in self.empleados:
+            if isinstance(emp, Piloto) or isinstance(emp, PilotoReserva):
+                pilotos.append(emp)
+        return pilotos
+
+
+    def realizar_consultas(self):
+        while True:
+            print("\nRealizar consultas")
+            print("1. Top 10 pilotos con más puntos en el campeonato")
+            print("2. Resumen campeonato de constructores (equipos)")
+            print("3. Top 5 pilotos mejores pagos")
+            print("4. Top 3 pilotos más habilidosos")
+            print("5. Retornar jefes de equipo")
+            print("6. Volver al menú principal")
+
+            opcion = input("Ingrese la opción deseada: ")
+
+            if opcion == "1":
+                self.consulta_top_10_pilotos()
+            elif opcion == "2":
+                self.consulta_resumen_constructores()
+            elif opcion == "3":
+                self.consulta_top_5_mejores_pagos()
+            elif opcion == "4":
+                self.consulta_top_3_habilidosos()
+            elif opcion == "5":
+                self.consulta_jefes_equipos()
+            elif opcion == "6":
+                break
+            else:
+                print("Opción no válida. Intente de nuevo.")
+
+    def consulta_top_10_pilotos(self):
+        pilotos_ordenados = sorted(
+            [piloto for piloto in self.obtener_todos_los_pilotos() if isinstance(piloto, Piloto)],
+            key=lambda piloto: getattr(piloto, 'puntaje_campeonato', 0),
+            reverse=True
+        )
+
+        print("\nTop 10 Pilotos con más puntos en el campeonato:")
+        for i, piloto in enumerate(pilotos_ordenados[:10]):
+            print(f"{i + 1}. Piloto {piloto.num_auto} - Puntos: {getattr(piloto, 'puntaje_campeonato', 0)}")
+
+    def consulta_resumen_constructores(self):
+        equipos_ordenados = sorted(
+            self.equipos,
+            key=lambda equipo: sum(getattr(piloto, 'puntaje_campeonato', 0) for piloto in equipo.obtener_pilotos()),
+            reverse=True
+        )
+
+        print("\nResumen Campeonato de Constructores:")
+        for i, equipo in enumerate(equipos_ordenados):
+            puntaje_total = sum(getattr(piloto, 'puntaje_campeonato', 0) for piloto in equipo.obtener_pilotos())
+            print(f"{i + 1}. Equipo {equipo.nombre} - Puntos: {puntaje_total}")
+
+    def consulta_top_5_mejores_pagos(self):
+        pilotos_ordenados = sorted(
+            [piloto for piloto in self.obtener_todos_los_pilotos() if isinstance(piloto, Piloto)],
+            key=lambda piloto: getattr(piloto, 'salario', 0),
+            reverse=True
+        )
+
+        print("\nTop 5 Pilotos Mejor Pagados:")
+        for i, piloto in enumerate(pilotos_ordenados[:5]):
+            print(f"{i + 1}. Piloto {piloto.num_auto} - Salario: {getattr(piloto, 'salario', 0)}")
+
+    def consulta_top_3_habilidosos(self):
+        pilotos_ordenados = sorted(
+            [piloto for piloto in self.obtener_todos_los_pilotos() if isinstance(piloto, Piloto)],
+            key=lambda piloto: getattr(piloto, 'score', 0),  # Utiliza el atributo 'score'
+            reverse=True
+        )
+
+        print("\nTop 3 Pilotos Más Habilidosos:")
+        for i, piloto in enumerate(pilotos_ordenados[:3]):
+            print(f"{i + 1}. Piloto {piloto.num_auto} - Habilidad: {getattr(piloto, 'score', 0)}")
+
+    def consulta_jefes_equipos(self):
+        jefes_equipos = set(
+            director for director in self.empleados if isinstance(director, DirectorEquipo) and director.equipo
+        )
+
+        print("\nJefes de Equipo:")
+        for jefe_equipo in jefes_equipos:
+            print(f"- {jefe_equipo.nombre}")
+
+
+    def ejecutar(self):
+        while True:
+            print("\nMenú Principal:")
+            print("1. Alta de empleado")
+            print("2. Alta de auto")
+            print("3. Alta de equipo")
+            print("4. Simular carrera")
+            print("5. Realizar consultas")
+            print("6. Finalizar programa")
+
+            try:
+                opcion = int(input("Ingrese la opción deseada: "))
+
+                if opcion == 1:
+                    self.alta_empleado()
+                elif opcion == 2:
+                    self.alta_auto()
+                elif opcion == 3:
+                    self.alta_equipo()
+                elif opcion == 4:
+                    self.simular_carrera()
+                elif opcion == 5:
+                    self.realizar_consultas()
+                elif opcion == 6:
+                    print("Programa finalizado.")
+                    break
+                else:
+                    print("Opción no válida. Intente nuevamente.")
+            except ValueError as e:
+                print(f"Error: {e}")
+
+if __name__ == "__main__":
+    simulador = SimuladorF1()
+    simulador.ejecutar()
