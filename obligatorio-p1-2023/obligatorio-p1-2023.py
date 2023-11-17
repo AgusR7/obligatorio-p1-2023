@@ -338,6 +338,7 @@ class SimuladorF1:
         except ValueError as e:
             print(f"Error: {e}")
 
+
     def simular_carrera(self):
         try:
             # Solicitar al usuario información sobre la carrera
